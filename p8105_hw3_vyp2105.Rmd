@@ -404,8 +404,7 @@ head(citibike_all$duration, 10)
 set.seed(123)
 
 citibike_sample <- citibike_all |>
-  filter(duration < 240) |>
-  slice_sample(prop = 0.01)
+  filter(duration < 240)
 
 # Check the resulting sample
 dim(citibike_sample)
