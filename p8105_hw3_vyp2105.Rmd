@@ -1,0 +1,20 @@
+---
+title: "P8105 Homework 3"
+author: "Vidhi Patel"
+output: github_document
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+```
+
+# Problem 1: NY NOAA
+
+## Data description
+
+```{r load-noaa}
+library(p8105.datasets)
+data("ny_noaa")
+
+ny_noaa
+```
