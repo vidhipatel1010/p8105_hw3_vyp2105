@@ -342,3 +342,187 @@ ggplot(
 
 The 24-hour activity profiles show a similar general pattern across education groups. Mean activity is relatively low overnight, increases sharply during the morning, remains elevated through much of the daytime, and decreases toward midnight. The curves for males and females are generally similar, although some differences are visible at particular times of day and across education groups. These results describe average activity patterns in this sample rather than proving that the groups differ in the broader population.
 
+## Problem 3: CitiBike
+
+### Import and clean the data
+
+```{r}
+citibike_jan2020 <- read_csv("data/citibike/Jan 2020 Citi.csv.zip", show_col_types = FALSE)
+citibike_jan2024 <- read_csv("data/citibike/Jan 2024 Citi.csv.zip", show_col_types = FALSE)
+citibike_july2020 <- read_csv("data/citibike/July 2020 Citi.csv.zip", show_col_types = FALSE)
+citibike_july2024 <- read_csv("data/citibike/July 2024 Citi.csv.zip", show_col_types = FALSE)
+
+glimpse(citibike_jan2020)
+glimpse(citibike_jan2024)
+glimpse(citibike_july2020)
+glimpse(citibike_july2024)
+```
+
+### Combine and clean the data
+
+```{r}
+citibike_all <- bind_rows(
+  citibike_jan2020 |> mutate(month = "January", year = 2020),
+  citibike_jan2024 |> mutate(month = "January", year = 2024),
+  citibike_july2020 |> mutate(month = "July", year = 2020),
+  citibike_july2024 |> mutate(month = "July", year = 2024)
+)
+
+glimpse(citibike_all)
+dim(citibike_all)
+names(citibike_all)
+```
+
+### Inspect and clean the data
+
+```{r}
+summary(citibike_all$duration)
+
+citibike_all |>
+  count(month, year)
+
+citibike_all |>
+  count(member_casual)
+
+citibike_all |>
+  count(rideable_type)
+
+citibike_all |>
+  count(weekdays)
+```
+
+### Filter rides and take a 1% sample
+
+```{r}
+# Inspect duration units and values
+summary(citibike_all$duration)
+
+# Check whether duration is measured in minutes or hours
+head(citibike_all$duration, 10)
+
+# Keep rides under 4 hours and take a reproducible 1% sample
+set.seed(123)
+
+citibike_sample <- citibike_all |>
+  filter(duration < 240) |>
+  slice_sample(prop = 0.01)
+
+# Check the resulting sample
+dim(citibike_sample)
+summary(citibike_sample$duration)
+```
+
+### Describe the sample
+
+```{r}
+citibike_sample |>
+  summarize(
+    total_rides = n(),
+    median_duration = median(duration, na.rm = TRUE),
+    mean_duration = mean(duration, na.rm = TRUE),
+    min_duration = min(duration, na.rm = TRUE),
+    max_duration = max(duration, na.rm = TRUE)
+  )
+
+citibike_sample |>
+  count(year, month, member_casual)
+```
+
+### Ride counts by year, month, and membership
+
+```{r}
+ride_counts <- citibike_sample |>
+  count(year, month, member_casual) |>
+  arrange(year, factor(month, levels = c("January", "July")), member_casual)
+
+ride_counts
+```
+
+### Top five start stations in July 2024
+
+
+```{r}
+top_stations_july2024 <- citibike_july2024 |>
+  count(start_station_name, sort = TRUE) |>
+  slice_head(n = 5)
+
+top_stations_july2024
+```
+
+### Ride duration by day of the week
+
+```{r}
+citibike_sample |>
+  mutate(
+    weekdays = factor(
+      weekdays,
+      levels = c("Monday", "Tuesday", "Wednesday", "Thursday",
+                 "Friday", "Saturday", "Sunday")
+    )
+  ) |>
+  ggplot(aes(x = weekdays, y = duration)) +
+  geom_boxplot() +
+  labs(
+    title = "CitiBike Ride Duration by Day of the Week",
+    x = "Day of the Week",
+    y = "Ride Duration (minutes)"
+  ) +
+  theme_minimal()
+```
+
+
+The boxplot compares CitiBike ride durations across the days of the week. The distributions show the typical ride duration, variability, and potential outliers for each day. Differences in the medians would suggest that typical ride duration varies by day, while differences in the interquartile ranges indicate variation in ride duration. The outliers represent rides that are substantially longer than most rides. These results describe associations and do not establish why ride durations differ across days.
+
+### Ride duration by month and year
+
+```{r}
+citibike_sample |>
+  mutate(
+    month = factor(month, levels = c("January", "July"))
+  ) |>
+  ggplot(aes(x = month, y = duration)) +
+  geom_boxplot() +
+  facet_wrap(~year) +
+  labs(
+    title = "CitiBike Ride Duration by Month and Year",
+    x = "Month",
+    y = "Ride Duration (minutes)"
+  ) +
+  theme_minimal()
+```
+The boxplots compare ride durations in January and July, separately for 2020 and 2024. Comparing the medians and spreads helps identify whether typical ride duration and variability differ between the two months within each year. Differences between 2020 and 2024 may also be visible. These comparisons are descriptive and do not establish the reasons for any observed differences.
+
+### Ride duration by year
+
+```{r}
+citibike_sample |>
+  ggplot(aes(x = factor(year), y = duration)) +
+  geom_boxplot() +
+  labs(
+    title = "CitiBike Ride Duration by Year",
+    x = "Year",
+    y = "Ride Duration (minutes)"
+  ) +
+  theme_minimal()
+```
+The boxplot compares ride-duration distributions between 2020 and 2024. Differences in the medians indicate differences in typical ride duration, while the box heights and whiskers show differences in variability. Potential outliers represent unusually long rides relative to the rest of the observations. Because the data include only January and July, the comparison does not necessarily represent ride durations across every month of either year.
+
+### 2024 ride duration by month, membership, and bike type
+
+```{r}
+citibike_sample |>
+  filter(year == 2024) |>
+  ggplot(aes(x = month, y = duration, fill = member_casual)) +
+  geom_boxplot() +
+  facet_wrap(~rideable_type) +
+  labs(
+    title = "2024 CitiBike Ride Duration by Month, Membership, and Bike Type",
+    x = "Month",
+    y = "Ride Duration (minutes)",
+    fill = "Membership Type"
+  ) +
+  theme_minimal()
+```
+
+This plot compares ride durations in January and July 2024 by membership type, with separate panels for bike type. Comparing the boxplots allows us to examine whether typical ride duration and variability differ by month, between casual and member riders, and across bike types. Any differences should be interpreted descriptively, since the plot alone cannot establish what caused them.
+
