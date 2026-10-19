@@ -143,3 +143,194 @@ temp_plot + snow_plot
 Interpretation: Maximum and minimum temperatures show a positive association, meaning that days with higher minimum temperatures generally also have higher maximum temperatures. The binned plot reveals a dense central cluster and a few observations that may be outliers.
 
 Snowfall distributions vary across years. The plot shows the distribution of positive snowfall measurements below 100 mm for each year. Zero snowfall and values of 100 mm or greater are excluded to focus on smaller snowfall amounts. The boxplots allow comparison of yearly distributions, but the large number of years makes individual differences difficult to distinguish.
+
+# Problem 2: NHANES
+
+## Import and clean the data
+
+```{r load-nhanes}
+# Import demographics data, skipping the four introductory rows
+nhanes_covar <- read_csv(
+  "data/nhanes_covar.csv",
+  skip = 5,
+  col_names = c("seqn", "sex", "age", "bmi", "education"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    seqn = as.numeric(seqn),
+    sex = as.numeric(sex),
+    age = as.numeric(age),
+    bmi = as.numeric(bmi),
+    education = as.numeric(education)
+  )
+
+# Import accelerometer data
+nhanes_accel <- read_csv(
+  "data/nhanes_accel.csv",
+  show_col_types = FALSE
+)
+
+# Check the data
+glimpse(nhanes_covar)
+head(nhanes_covar)
+head(nhanes_accel[, 1:6])
+```
+
+```{r clean-merge-nhanes}
+# Convert sex and education to labeled factors
+nhanes_covar <- nhanes_covar |>
+  mutate(
+    sex = factor(
+      sex,
+      levels = c(1, 2),
+      labels = c("Male", "Female")
+    ),
+    education = factor(
+      education,
+      levels = c(1, 2, 3),
+      labels = c(
+        "Less than high school",
+        "High school equivalent",
+        "More than high school"
+      ),
+      ordered = TRUE
+    )
+  )
+
+# Merge demographics with minute-by-minute activity data
+nhanes_merged <- nhanes_covar |>
+  inner_join(nhanes_accel, by = c("seqn" = "SEQN"))
+
+# Check the merged dataset
+glimpse(nhanes_merged)
+dim(nhanes_merged)
+```
+
+```{r filter-nhanes}
+# Keep participants age 21 or older with complete demographic data
+nhanes_clean <- nhanes_merged |>
+  filter(
+    age >= 21,
+    !is.na(sex),
+    !is.na(age),
+    !is.na(bmi),
+    !is.na(education)
+  )
+
+# Check the filtered dataset
+dim(nhanes_clean)
+
+# Summarize the demographic variables
+nhanes_clean |>
+  summarize(
+    participants = n(),
+    minimum_age = min(age),
+    maximum_age = max(age),
+    missing_sex = sum(is.na(sex)),
+    missing_age = sum(is.na(age)),
+    missing_bmi = sum(is.na(bmi)),
+    missing_education = sum(is.na(education))
+  )
+```
+
+## Gender and education distribution
+
+```{r education-table}
+# Count participants by sex and education level
+nhanes_clean |>
+  count(education, sex) |>
+  pivot_wider(
+    names_from = sex,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+## Age distributions by sex and education
+
+```{r age-distributions}
+ggplot(nhanes_clean, aes(x = age, fill = sex)) +
+  geom_histogram(
+    binwidth = 5,
+    position = "identity",
+    alpha = 0.5
+  ) +
+  facet_wrap(~education, ncol = 1) +
+  labs(
+    title = "Age Distribution by Sex and Education Level",
+    x = "Age (years)",
+    y = "Number of Participants",
+    fill = "Sex"
+  ) +
+  theme_minimal()
+```
+
+## Total physical activity by age and sex
+
+```{r total-activity}
+# Calculate total activity across all 1440 minutes
+nhanes_clean <- nhanes_clean |>
+  mutate(
+    total_activity = rowSums(
+      across(starts_with("min")),
+      na.rm = TRUE
+    )
+  )
+
+# Plot total activity against age, by sex and education
+ggplot(
+  nhanes_clean,
+  aes(x = age, y = total_activity, color = sex)
+) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~education, ncol = 1) +
+  labs(
+    title = "Total Physical Activity by Age, Sex, and Education",
+    x = "Age (years)",
+    y = "Total Activity (sum of minute-level MIMS)",
+    color = "Sex"
+  ) +
+  theme_minimal()
+```
+
+## Activity patterns over 24 hours
+
+```{r daily-activity}
+# Calculate average activity at each minute of the day
+activity_by_minute <- nhanes_clean |>
+  select(sex, education, starts_with("min")) |>
+  pivot_longer(
+    cols = starts_with("min"),
+    names_to = "minute",
+    values_to = "activity"
+  ) |>
+  mutate(
+    minute = as.integer(str_remove(minute, "min"))
+  ) |>
+  group_by(sex, education, minute) |>
+  summarize(
+    mean_activity = mean(activity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Plot average activity throughout the day
+ggplot(
+  activity_by_minute,
+  aes(x = minute, y = mean_activity, color = sex)
+) +
+  geom_line() +
+  facet_wrap(~education, ncol = 1) +
+  scale_x_continuous(
+    breaks = c(1, 240, 480, 720, 960, 1200, 1440),
+    labels = c("12 AM", "4 AM", "8 AM", "12 PM",
+               "4 PM", "8 PM", "12 AM")
+  ) +
+  labs(
+    title = "Average Activity Patterns Across 24 Hours",
+    x = "Time of Day",
+    y = "Mean Minute-Level MIMS",
+    color = "Sex"
+  ) +
+  theme_minimal()
+```
