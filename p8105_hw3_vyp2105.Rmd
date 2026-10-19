@@ -246,6 +246,8 @@ nhanes_clean |>
   )
 ```
 
+The distribution of participants varies across education levels. In the less-than-high-school group, the numbers of males and females are similar (27 males and 28 females). In the high-school-equivalent group, there are more males than females (35 versus 23). In the more-than-high-school group, the numbers are also similar (56 males and 59 females). Overall, the largest group of participants has more than a high school education.
+
 ## Age distributions by sex and education
 
 ```{r age-distributions}
@@ -264,6 +266,7 @@ ggplot(nhanes_clean, aes(x = age, fill = sex)) +
   ) +
   theme_minimal()
 ```
+The age distributions show how participants are distributed across age groups, separately by sex and education level. Participants span ages 21 to 80 years. The number and age distribution of males and females vary across education groups, although the histograms overlap. Because the sample sizes differ across education groups, differences in bar heights should be interpreted in the context of the number of participants in each group.
 
 ## Total physical activity by age and sex
 
@@ -293,6 +296,8 @@ ggplot(
   ) +
   theme_minimal()
 ```
+
+Total physical activity varies across participants of different ages, sexes, and education levels. The scatterplots show substantial variation in activity among people of the same age. The smoothed curves suggest that activity generally decreases at older ages in several groups, although the pattern is not identical across education levels or between males and females. These patterns are descriptive and do not establish that age, sex, or education causes differences in physical activity.
 
 ## Activity patterns over 24 hours
 
@@ -334,3 +339,6 @@ ggplot(
   ) +
   theme_minimal()
 ```
+
+The 24-hour activity profiles show a similar general pattern across education groups. Mean activity is relatively low overnight, increases sharply during the morning, remains elevated through much of the daytime, and decreases toward midnight. The curves for males and females are generally similar, although some differences are visible at particular times of day and across education groups. These results describe average activity patterns in this sample rather than proving that the groups differ in the broader population.
+
